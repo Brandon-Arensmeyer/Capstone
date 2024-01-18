@@ -1,0 +1,1 @@
+record Fruits(string name, decimal calories);
