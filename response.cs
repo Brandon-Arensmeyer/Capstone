@@ -16,11 +16,15 @@ void simpleResponse(){
             AnsiConsole.MarkupLine("[red]Thats a dumb question! Ask something else![/]");
         }
         else{
-            AnsiConsole.MarkupLine("[magenta]Come back when you actually have a good question.[/] [maroon]>:C[/]");
+            AnsiConsole.MarkupLine("[magenta]Come back when you actually have a good question.[/] :angry_face:");
             finish = true;
         }
     }
 }
+
+
+
+
 
 // This lets you put in names and their age
 void simpleTable(){
@@ -47,6 +51,14 @@ void simpleTable(){
 
 }
 
+
+
+
+
+
+
+// ask for names and things about you then puts it into a live graph
+
 void LiveNameTable(){
     var table = new Table().Centered();
 
@@ -67,9 +79,9 @@ void LiveNameTable(){
     }
     
     var dessertList = new List<string>();
-    dessertList.Add("Vanilla");
-    dessertList.Add("Chocolate");
-    dessertList.Add("Strawberry");
+    dessertList.Add("Cake");
+    dessertList.Add("Ice Cream");
+    dessertList.Add("Cupcake");
     dessertList.Add("Other");
 
     var dessertPrompt = new TextPrompt<string>("[blue]What is you favorite dessert?[/]");
@@ -77,6 +89,7 @@ void LiveNameTable(){
         dessertPrompt.AddChoice(dessert);
     }
 
+    // This asks for information from the user
 
     while(done == false){
         var nameInput = AnsiConsole.Ask<string>("[blue]What's your name?[/]");
@@ -91,6 +104,8 @@ void LiveNameTable(){
             done = true;
         }
     }
+
+    // This is where the table is created
 
     AnsiConsole.Live(table)
         .Start(ctx => 
@@ -119,6 +134,46 @@ void LiveNameTable(){
         });
 }
 
+
+
+
+
+
+void BreakdownChart(){
+    Random rnd = new Random();
+    AnsiConsole.Write(new BreakdownChart()
+    .FullSize()
+    .ShowPercentage()
+    // Add item is in the order of label, value, then color.
+    .AddItem("Python", rnd.Next(1, 25), Color.Red)
+    .AddItem("HTML", rnd.Next(1, 25), Color.Blue)
+    .AddItem("C#", rnd.Next(1, 25), Color.Green)
+    .AddItem("JavaScript", rnd.Next(1, 25), Color.Yellow)
+    .AddItem("Java", rnd.Next(1, 25), Color.LightGreen)
+    .AddItem("Shell", rnd.Next(1, 25), Color.Aqua));
+}
+
+
+
+// Renders a FIGlet
+
+void Figlet(){
+
+    AnsiConsole.Write(
+    new FigletText("Packers are the greatest team")
+        .LeftJustified()
+        .Color(Color.Green));
+}
+
+
+
+
+// Above here is all the classes created to be used in the future
+
+// Below here is everying being called
+
+
+// This creates two progress bar lines
 await AnsiConsole.Progress()
         .StartAsync(async ctx =>{
             var task1 = ctx.AddTask("[green]Computer Startup[/]");
@@ -126,7 +181,7 @@ await AnsiConsole.Progress()
             
 
             while(!ctx.IsFinished){
-                await Task.Delay(0);
+                await Task.Delay(125);
 
                 task1.Increment(1.5);
                 task2.Increment(0.5);
@@ -134,6 +189,32 @@ await AnsiConsole.Progress()
         });
 
 
+
+// This creates to simatanious load up sequencens
+
+AnsiConsole.Status()
+    .Start("One second...", ctx => 
+    {
+        // Update the status and spinner
+        ctx.Status("One second...");
+        ctx.Spinner(Spinner.Known.Christmas);
+        ctx.SpinnerStyle(Style.Parse("green"));
+        
+        // Simulate some work
+        AnsiConsole.MarkupLine("Getting some coffee...");
+        Thread.Sleep(2000);
+        
+       
+
+        // Simulate some work
+        AnsiConsole.MarkupLine("Stretching...");
+        Thread.Sleep(2000);
+    });
+
+
+
+
+// This is where you can use all the programs created above
 
 AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
 var quit = false;
@@ -144,17 +225,24 @@ while(quit == false){
         .PageSize(10)
         .MoreChoicesText("[grey](What would you like to see?)[/]")
         .AddChoices(new[] {
-            "Simple Response", "Simple Name Table", "Live Name Table", "Quit"
+            "Simple Response", "Simple Name Table", "Live Name Table", "Breakdown Chart", "Figlet", "Quit"
         }));
 
     if(task == "Simple Response"){
         simpleResponse();
     }
-    else if(task == "Name Table"){
+    else if(task == "Simple Name Table"){
         simpleTable();
     }
     else if(task == "Live Name Table"){
         LiveNameTable();
+    }
+
+    else if(task == "Breakdown Chart"){
+        BreakdownChart();
+    }
+    else if(task == "Figlet"){
+        Figlet();
     }
     else if(task == "Quit"){
         AnsiConsole.MarkupLine("[yellow]Goodbye![/]");
