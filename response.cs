@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Formats.Asn1;
 using System.Net.Quic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spectre.Console;
 
@@ -136,6 +138,40 @@ void LiveNameTable(){
 
 
 
+void TimesTable(){
+    var table = new Table().Centered();
+
+    // This asks for information from the user
+    var number = AnsiConsole.Ask<int>("[blue]Whats the number you want to see multiplied?[/]");
+    var length = AnsiConsole.Ask<int>($"[blue]How many times do you want to multiply {number} by?[/]");
+
+
+    int x = 1;
+    // This is where the table is created
+
+    AnsiConsole.Live(table)
+        .Start(ctx => 
+        {
+            table.AddColumn("Number");
+            ctx.Refresh();
+            Thread.Sleep(100);
+
+            table.AddColumn("Answer");
+            ctx.Refresh();
+            Thread.Sleep(100);
+
+            for(var i = 0; i < length; i++){
+                table.AddRow($"{number} * {x}", $"{number * x}");
+                ctx.Refresh();
+                Thread.Sleep(100);
+                x++;
+            }
+
+        });
+}
+
+
+
 
 
 
@@ -181,7 +217,7 @@ await AnsiConsole.Progress()
             
 
             while(!ctx.IsFinished){
-                await Task.Delay(125);
+                await Task.Delay(50);
 
                 task1.Increment(1.5);
                 task2.Increment(0.5);
@@ -225,7 +261,7 @@ while(quit == false){
         .PageSize(10)
         .MoreChoicesText("[grey](What would you like to see?)[/]")
         .AddChoices(new[] {
-            "Simple Response", "Simple Name Table", "Live Name Table", "Breakdown Chart", "Figlet", "Quit"
+            "Simple Response", "Simple Name Table", "Live Name Table", "Times Table", "Breakdown Chart", "Figlet", "Quit"
         }));
 
     if(task == "Simple Response"){
@@ -236,6 +272,9 @@ while(quit == false){
     }
     else if(task == "Live Name Table"){
         LiveNameTable();
+    }
+    else if(task == "Times Table"){
+        TimesTable();
     }
 
     else if(task == "Breakdown Chart"){
