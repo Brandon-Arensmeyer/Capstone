@@ -6,31 +6,35 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spectre.Console;
 using Azure.AI.OpenAI;
+using Spectre.Console.Rendering;
+using Azure.Core;
 
 
-var openAI = new OpenAIClient("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");
+var openAI = new OpenAIClient("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");
 
 
-string tellmeastory(){
-    // var options = new ChatCompletionsOptions(){DeploymentName = "gpt-4-1106-preview"};
-    var options = new ChatCompletionsOptions(){DeploymentName = "gpt-3.5-turbo"};
-    var sysMessage = new ChatRequestSystemMessage("You are an AI");
-    var prompt = new ChatRequestUserMessage("Tell me a story");
-    options.Messages.Add(sysMessage);
-    options.Messages.Add(prompt); 
+// string tellmeastory(){
+//     // var options = new ChatCompletionsOptions(){DeploymentName = "gpt-4-1106-preview"};
+//     var options = new ChatCompletionsOptions(){DeploymentName = "gpt-3.5-turbo"};
+//     var sysMessage = new ChatRequestSystemMessage("You are an AI");
+//     var prompt = new ChatRequestUserMessage("Tell me about the nfl");
+//     options.Messages.Add(sysMessage);
+//     options.Messages.Add(prompt); 
 
-    var response = openAI.GetChatCompletions(options);
-    if(response.HasValue){
-        return response.Value.Choices[0].Message.Content;
-    }
-    else{
-        return "Error talking to openAI";
-    }
-}
+//     var response = openAI.GetChatCompletions(options);
+//     if(response.HasValue){
+//         return response.Value.Choices[0].Message.Content;
+//     }
+//     else{
+//         return "Error talking to openAI";
+//     }
+// }
+
 
 string getResponse(List<ChatRequestMessage> context, string prompt){
     // var options = new ChatCompletionsOptions(){DeploymentName = "gpt-4-1106-preview"};
     var options = new ChatCompletionsOptions(){DeploymentName = "gpt-3.5-turbo"};
+    var table = new Table();
     if(context.Count<=0){
         context.Add(new ChatRequestSystemMessage("You are an AI"));
 
@@ -39,8 +43,23 @@ string getResponse(List<ChatRequestMessage> context, string prompt){
     foreach(var m in context){
         options.Messages.Add(m);
     } 
+    
     var response = openAI.GetChatCompletions(options);
+    
+
     if(response.HasValue){
+        AnsiConsole.Status()
+        .Start("One second...", ctx => 
+        {
+            // Update the status and spinner
+            ctx.Status("One second...");
+            ctx.Spinner(Spinner.Known.Christmas);
+            ctx.SpinnerStyle(Style.Parse("green"));
+            
+            // Simulate some work
+            AnsiConsole.MarkupLine("Loading...");
+            Thread.Sleep(5000);
+        });
         var result = response.Value.Choices[0].Message;
         context.Add(new ChatRequestAssistantMessage(result));
         return result.Content;
@@ -51,6 +70,9 @@ string getResponse(List<ChatRequestMessage> context, string prompt){
 }
 
 void simpleResponse(){
+    var table = new Table().Centered(); 
+    table.AddColumn("[blue]question[/]");
+    table.AddColumn("[yellow]answer[/]");
     var finish = false;
     var content = new List<ChatRequestMessage>();
     // This will loop until they say quit
@@ -58,8 +80,9 @@ void simpleResponse(){
         AnsiConsole.MarkupLine("[green]What whould you like to ask me? (Type quit to end)[/]");
         var userInput = Console.ReadLine();
         if(userInput != "quit"){
+            
             var message = getResponse(content, userInput);
-            AnsiConsole.MarkupLineInterpolated($"[red]{message}[/]");
+            AnsiConsole.MarkupLineInterpolated($"[red]{message}[/]");     
         }
         else{
             AnsiConsole.MarkupLine("[magenta]Come back when you actually have a good question.[/] :angry_face:");
@@ -69,7 +92,14 @@ void simpleResponse(){
 }
 
 
+void DisplayText(string text){
+    string[] words = text.Split(' ');
+    foreach(string word in words){
+        Console.WriteLine(word + " ");
+        Thread.Sleep(10);
+    }
 
+}
 
 
 // This lets you put in names and their age
