@@ -5,17 +5,61 @@ using System.Net.Quic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spectre.Console;
+using Azure.AI.OpenAI;
 
 
+var openAI = new OpenAIClient("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");
+
+
+string tellmeastory(){
+    // var options = new ChatCompletionsOptions(){DeploymentName = "gpt-4-1106-preview"};
+    var options = new ChatCompletionsOptions(){DeploymentName = "gpt-3.5-turbo"};
+    var sysMessage = new ChatRequestSystemMessage("You are an AI");
+    var prompt = new ChatRequestUserMessage("Tell me a story");
+    options.Messages.Add(sysMessage);
+    options.Messages.Add(prompt); 
+
+    var response = openAI.GetChatCompletions(options);
+    if(response.HasValue){
+        return response.Value.Choices[0].Message.Content;
+    }
+    else{
+        return "Error talking to openAI";
+    }
+}
+
+string getResponse(List<ChatRequestMessage> context, string prompt){
+    // var options = new ChatCompletionsOptions(){DeploymentName = "gpt-4-1106-preview"};
+    var options = new ChatCompletionsOptions(){DeploymentName = "gpt-3.5-turbo"};
+    if(context.Count<=0){
+        context.Add(new ChatRequestSystemMessage("You are an AI"));
+
+    }
+    context.Add(new ChatRequestUserMessage(prompt));
+    foreach(var m in context){
+        options.Messages.Add(m);
+    } 
+    var response = openAI.GetChatCompletions(options);
+    if(response.HasValue){
+        var result = response.Value.Choices[0].Message;
+        context.Add(new ChatRequestAssistantMessage(result));
+        return result.Content;
+    }
+    else{
+        return "Error talking to openAI";
+    }
+}
 
 void simpleResponse(){
     var finish = false;
+    var content = new List<ChatRequestMessage>();
     // This will loop until they say quit
     while(finish == false){
         AnsiConsole.MarkupLine("[green]What whould you like to ask me? (Type quit to end)[/]");
         var userInput = Console.ReadLine();
         if(userInput != "quit"){
-            AnsiConsole.MarkupLine("[red]Thats a dumb question! Ask something else![/]");
+            var message = getResponse(content, userInput);
+            AnsiConsole.MarkupLineInterpolated($"[red]{message}[/]");
         }
         else{
             AnsiConsole.MarkupLine("[magenta]Come back when you actually have a good question.[/] :angry_face:");
@@ -217,7 +261,7 @@ await AnsiConsole.Progress()
             
 
             while(!ctx.IsFinished){
-                await Task.Delay(50);
+                await Task.Delay(0);
 
                 task1.Increment(1.5);
                 task2.Increment(0.5);
@@ -238,13 +282,13 @@ AnsiConsole.Status()
         
         // Simulate some work
         AnsiConsole.MarkupLine("Getting some coffee...");
-        Thread.Sleep(2000);
+        Thread.Sleep(0);
         
        
 
         // Simulate some work
         AnsiConsole.MarkupLine("Stretching...");
-        Thread.Sleep(2000);
+        Thread.Sleep(0);
     });
 
 
