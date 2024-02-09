@@ -12,45 +12,29 @@ using System.ComponentModel;
 
 
 var openAI = new OpenAIClient("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");
-
-
-async void simpleResponse(){
-    var cts = new CancellationTokenSource();
-    while(true){
-        var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
-        await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
-    }
-
-    // var table = new Table().Centered(); 
-    // table.AddColumn("[blue]question[/]");
-    // table.AddColumn("[yellow]answer[/]");
-    // var finish = false;
-    // var content = new List<ChatRequestMessage>();
-    // // This will loop until they say quit
-    // while(finish == false){
-
-    //     await AnsiConsole.Live(new Panel(new Markup("Hello!"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
-    //     AnsiConsole.MarkupLine("[green]What whould you like to ask me? (Type quit to end)[/]");
-    //     var userInput = Console.ReadLine();
-        
-    //     if(userInput != "quit"){
-            
-    //         var message = getResponse(content, userInput);
-    //         AnsiConsole.MarkupLineInterpolated($"[Blue]{message}[/]");     
-    //     }
-    //     else{
-    //         AnsiConsole.MarkupLine("[magenta]Come back when you actually have a good question.[/] :angry_face:");
-    //         finish = true;
-    //     }
-    // }
+string readResource (string resourceName) {
+    using var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+    using var reader = new StreamReader(stream);
+    return reader.ReadToEnd();
 }
+var systemFormatingPrompt = readResource("Capstone.Capstone.SpectreConsoleFormattingSystemPrompt.md");
+
+// async void simpleResponse(){
+//     var cts = new CancellationTokenSource();
+//     while(true){
+//         var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
+//         await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
+//     }
+
+    
+// }
 
 
 Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatRequestMessage> context,String prompt) {
     var options = new ChatCompletionsOptions();
-    options.DeploymentName = "gpt-3.5-turbo";
+    options.DeploymentName = "gpt-4-1106-preview";
     if(context.Count == 0){
-        context.Add(new ChatRequestUserMessage("You are an AI."));
+        context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
     context.Add(new ChatRequestUserMessage(prompt));
     foreach(var m in context){
@@ -66,17 +50,48 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
         var updates = await getCompletion(context, prompt);
         await foreach(var chunk in updates){
             txtString += chunk.ContentUpdate;
-            ldc.UpdateTarget(new Panel(new Markup(txtString)).Expand().Header("Response", Justify.Center));
-            ldc.Refresh();
+            try{
+                ldc.UpdateTarget(new Panel(Markup.FromInterpolated($"[blue]{txtString}[/]")).Expand().Header("Response", Justify.Center));
+            }catch{
+                Console.WriteLine(txtString);
+                throw;
+            }
+            
+            
         }
+        ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
+        ldc.Refresh();
         context.Add(new ChatRequestAssistantMessage(txtString));
     };
     
 }
 
-void changeColor(){
-    AnsiConsole.Ask<String>("[green] Enter string here [/]?");
+void Figlet(){
+
+    AnsiConsole.Write(
+    new FigletText("Packers are the greatest team")
+        .LeftJustified()
+        .Color(Color.Green));
 }
+
+void BreakdownChart(){
+    Random rnd = new Random();
+    AnsiConsole.Write(new BreakdownChart()
+    .FullSize()
+    .ShowPercentage()
+    // Add item is in the order of label, value, then color.
+    .AddItem("Python", rnd.Next(1, 25), Color.Red)
+    .AddItem("HTML", rnd.Next(1, 25), Color.Blue)
+    .AddItem("C#", rnd.Next(1, 25), Color.Green)
+    .AddItem("JavaScript", rnd.Next(1, 25), Color.Yellow)
+    .AddItem("Java", rnd.Next(1, 25), Color.LightGreen)
+    .AddItem("Shell", rnd.Next(1, 25), Color.Aqua));
+}
+
+
+// void changeColor(){
+//     AnsiConsole.Ask<String>("[green] Enter string here [/]?");
+// }
 
 
 
@@ -91,8 +106,8 @@ void changeColor(){
 // This creates two progress bar lines
 await AnsiConsole.Progress()
         .StartAsync(async ctx =>{
-            var task1 = ctx.AddTask("[green]Computer Startup[/]");
-            var task2 = ctx.AddTask("[green]Motivation to work[/]");
+            var task1 = ctx.AddTask("[blue]Computer Startup[/]");
+            var task2 = ctx.AddTask("[blue]Motivation to work[/]");
             
 
             while(!ctx.IsFinished){
@@ -132,7 +147,6 @@ AnsiConsole.Status()
 // This is where you can use all the programs created above
 
 AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
-
 var cts = new CancellationTokenSource();
 while(true){
     var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
