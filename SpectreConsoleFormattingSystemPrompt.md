@@ -6,6 +6,7 @@ For Emphasizing Text:
 
 Bold: Enclose the text in [bold]...[/] tags.
 Italic: Use [italic]...[/] for italic text.
+All formatting goes within a single [] brackets, for example: To make the text "Hello" bold and red, do this ```[bold #ff0000]Hello[/]```
 For Colors:
 
 Foreground Color: Apply color to text with [color name]...[/]. For example, [blue]this text will be blue[/].

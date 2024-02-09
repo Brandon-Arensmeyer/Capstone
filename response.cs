@@ -47,24 +47,44 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     var context = new List<ChatRequestMessage>();
     return async ldc =>{
         var txtString = " ";
-        var updates = await getCompletion(context, prompt);
-        await foreach(var chunk in updates){
-            txtString += chunk.ContentUpdate;
+        void render(){
             try{
-                ldc.UpdateTarget(new Panel(Markup.FromInterpolated($"[blue]{txtString}[/]")).Expand().Header("Response", Justify.Center));
+                ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
             }catch{
-                Console.WriteLine(txtString);
-                throw;
+                try{
+                    var openi = txtString.LastIndexOf('[');
+                    var closei = txtString.LastIndexOf(']');
+                    if(openi < closei){
+                        ldc.UpdateTarget(new Panel(new Markup($"{txtString}[/]")).Expand().Header("Response", Justify.Center));
+
+                    }
+                    else{
+                        ldc.UpdateTarget(new Panel(new Markup($"{txtString[..(openi - 1)]}")).Expand().Header("Response", Justify.Center));
+                    }
+                }catch{
+                    // Console.WriteLine(txtString);
+                    txtString = txtString.Replace("[color=", "[");
+                    ldc.UpdateTarget(new Panel(Markup.FromInterpolated($"[blue]{txtString}[/]")).Expand().Header("Response", Justify.Center));
+                    // throw;
+                }
             }
             
-            
+            ldc.Refresh(); 
         }
-        ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
-        ldc.Refresh();
+        
+        var updates = await getCompletion(context, prompt);
+        await foreach(var chunk in updates){
+            txtString += chunk.ContentUpdate;   
+            render(); 
+        }
+        
+        render();
         context.Add(new ChatRequestAssistantMessage(txtString));
     };
     
 }
+
+
 
 void Figlet(){
 
