@@ -9,7 +9,8 @@ using Azure.AI.OpenAI;
 using Spectre.Console.Rendering;
 using Azure.Core;
 using System.ComponentModel;
-
+using System.Net.Http;
+using System.Threading.Tasks;
 
 var openAI = new OpenAIClient("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");
 string readResource (string resourceName) {
@@ -85,28 +86,49 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
 }
 
 
+static async Task Weather()
+    {
+        Console.WriteLine("Enter the city name to get the weather:");
+        string cityName = Console.ReadLine();
 
-void Figlet(){
+        string apiKey = "ea0f10e33a4f37d8fb4a028c82ac141e";
+        string apiUrl = $"http://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={apiKey}&units=metric";
 
-    AnsiConsole.Write(
-    new FigletText("Packers are the greatest team")
-        .LeftJustified()
-        .Color(Color.Green));
-}
+        try
+        {
+            string weatherData = await GetWeatherData(apiUrl);
 
-void BreakdownChart(){
-    Random rnd = new Random();
-    AnsiConsole.Write(new BreakdownChart()
-    .FullSize()
-    .ShowPercentage()
-    // Add item is in the order of label, value, then color.
-    .AddItem("Python", rnd.Next(1, 25), Color.Red)
-    .AddItem("HTML", rnd.Next(1, 25), Color.Blue)
-    .AddItem("C#", rnd.Next(1, 25), Color.Green)
-    .AddItem("JavaScript", rnd.Next(1, 25), Color.Yellow)
-    .AddItem("Java", rnd.Next(1, 25), Color.LightGreen)
-    .AddItem("Shell", rnd.Next(1, 25), Color.Aqua));
-}
+            // Parse and display weather information
+            Console.WriteLine("Weather Information:");
+            Console.WriteLine(weatherData);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    static async Task<string> GetWeatherData(string apiUrl)
+    {
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch weather data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
+
+
+
+
+
 
 
 // void changeColor(){
@@ -166,32 +188,11 @@ AnsiConsole.Status()
 
 // This is where you can use all the programs created above
 
-AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
-var cts = new CancellationTokenSource();
-while(true){
-    var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
-    await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
-}
-
-// var quit = false;
-// while(quit == false){
-//     var task = AnsiConsole.Prompt(
-//     new SelectionPrompt<string>()
-//         .Title("What would you like to see?")
-//         .PageSize(10)
-//         .MoreChoicesText("[grey](What would you like to see?)[/]")
-//         .AddChoices(new[] {
-//             "Simple Response","Quit"
-//         }));
-
-//     if(task == "Simple Response"){
-//         simpleResponse();
-        
-        
-//     }
-//     else if(task == "Quit"){
-//         AnsiConsole.MarkupLine("[yellow]Goodbye![/]");
-//         quit = true;
-//     }
+// AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
+// var cts = new CancellationTokenSource();
+// while(true){
+//     var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
+//     await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
 // }
 
+await Weather();
