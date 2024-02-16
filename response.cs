@@ -18,7 +18,7 @@ string readResource (string resourceName) {
     using var reader = new StreamReader(stream);
     return reader.ReadToEnd();
 }
-var systemFormatingPrompt = readResource("Capstone.Capstone.SpectreConsoleFormattingSystemPrompt.md");
+var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPrompt.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();
@@ -30,14 +30,38 @@ var systemFormatingPrompt = readResource("Capstone.Capstone.SpectreConsoleFormat
     
 // }
 
+System.BinaryData makeParameters(params (string, string, string)[] parameters) {
+    var properties = new System.Collections.Generic.Dictionary<string, object>();
+    foreach (var pv in parameters) {
+        var p = new System.Collections.Generic.Dictionary<string, object>();
+        p.Add("type", pv.Item2);
+        p.Add("description", pv.Item3);
+        properties.Add(pv.Item1, p);
+    }
+    var o = new System.Collections.Generic.Dictionary<string, object>();
+    o.Add("type", "object");
+    o.Add("properties", properties);
+    return BinaryData.FromObjectAsJson(o);
+}
 
 Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatRequestMessage> context,String prompt) {
     var options = new ChatCompletionsOptions();
     options.DeploymentName = "gpt-4-1106-preview";
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "getWeather", 
+                Description = "You will recive the weather and the JSON document the describes the clouds, temperature, humidity, etc...",
+                Parameters = makeParameters(
+                    ("cityName", "string", "name of the city we want the weather for")
+                )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
-    context.Add(new ChatRequestUserMessage(prompt));
+    if(!String.IsNullOrWhiteSpace(prompt)){
+        context.Add(new ChatRequestUserMessage(prompt));
+    }
+    
     foreach(var m in context){
         options.Messages.Add(m);
     }
@@ -48,6 +72,8 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     var context = new List<ChatRequestMessage>();
     return async ldc =>{
         var txtString = " ";
+        var functionName = "";
+        var functionArgs = "";
         void render(){
             try{
                 ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
@@ -72,15 +98,37 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
             
             ldc.Refresh(); 
         }
-        
-        var updates = await getCompletion(context, prompt);
-        await foreach(var chunk in updates){
-            txtString += chunk.ContentUpdate;   
-            render(); 
-        }
-        
-        render();
-        context.Add(new ChatRequestAssistantMessage(txtString));
+
+        var cont = false;
+        do{
+            var updates = await getCompletion(context, prompt);
+            await foreach(var chunk in updates){
+                switch (chunk.Role){
+                    case var r when r == ChatRole.Assistant:
+                        txtString += chunk.ContentUpdate;   
+                        render();
+                        break;
+                    case var r when r == ChatRole.Tool:
+                        functionName = chunk.FunctionName;
+                        functionArgs += chunk.FunctionArgumentsUpdate;
+                        txtString = $"{functionName}\n{functionArgs}";
+                        render();
+                        break;
+                }
+                
+            }
+            
+            render();
+            if(String.IsNullOrEmpty(functionName)){
+                context.Add(new ChatRequestAssistantMessage(txtString));
+                cont = false;
+            }
+            else{
+                context.Add(new ChatRequestFunctionMessage(functionName, """Weather Information:{"coord":{"lon":-0.1257,"lat":51.5085},"weather":[{"id":804,"main":"Clouds","description":"overcast clouds","icon":"04n"}],"base":"stations","main":{"temp":11.64,"feels_like":11.18,"temp_min":10.16,"temp_max":12.75,"pressure":1007,"humidity":89},"visibility":10000,"wind":{"speed":1.34,"deg":267,"gust":2.68},"clouds":{"all":99},"dt":1708042032,"sys":{"type":2,"id":2091269,"country":"GB","sunrise":1708067638,"sunset":1708103732},"timezone":0,"id":2643743,"name":"London","cod":200} """));
+                cont = true;
+                prompt = "";
+            }
+        }while(cont);
     };
     
 }
@@ -91,12 +139,9 @@ static async Task Weather()
         Console.WriteLine("Enter the city name to get the weather:");
         string cityName = Console.ReadLine();
 
-        string apiKey = "ea0f10e33a4f37d8fb4a028c82ac141e";
-        string apiUrl = $"http://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={apiKey}&units=metric";
-
         try
         {
-            string weatherData = await GetWeatherData(apiUrl);
+            string weatherData = await GetWeatherData(cityName);
 
             // Parse and display weather information
             Console.WriteLine("Weather Information:");
@@ -108,10 +153,13 @@ static async Task Weather()
         }
     }
 
-    static async Task<string> GetWeatherData(string apiUrl)
+    static async Task<string> GetWeatherData(string cityName)
     {
         using (HttpClient client = new HttpClient())
+        
         {
+            string apiKey = "ea0f10e33a4f37d8fb4a028c82ac141e";
+            string apiUrl = $"http://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={apiKey}&units=metric";
             HttpResponseMessage response = await client.GetAsync(apiUrl);
 
             if (response.IsSuccessStatusCode)
@@ -131,16 +179,11 @@ static async Task Weather()
 
 
 
-// void changeColor(){
-//     AnsiConsole.Ask<String>("[green] Enter string here [/]?");
-// }
-
-
 
 
 // --------------------------------------------------------------------------------------------------------
 
-// Above here is all the classes created to be used in the future
+// Above here is all the functions created to be used in the future
 
 // Below here is everying being called
 
@@ -188,11 +231,10 @@ AnsiConsole.Status()
 
 // This is where you can use all the programs created above
 
-// AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
-// var cts = new CancellationTokenSource();
-// while(true){
-//     var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
-//     await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
-// }
+AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
+var cts = new CancellationTokenSource();
+while(true){
+    var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
+    await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
+}
 
-await Weather();
