@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Capstone/SpectreConsoleFormattingSystemPrompt.md" >
+    <EmbeddedResource Include="SpectreConsoleFormattingSystemPrompt.md" >
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
