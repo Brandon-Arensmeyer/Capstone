@@ -72,8 +72,6 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     var context = new List<ChatRequestMessage>();
     return async ldc =>{
         var txtString = " ";
-        var functionName = "";
-        var functionArgs = "";
         void render(){
             try{
                 ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
@@ -101,31 +99,47 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
 
         var cont = false;
         do{
+            ChatRole? role = null;
+            string? functionName = null;
+            string? toolCallId = null;
+            string functionArgs = "";
+
             var updates = await getCompletion(context, prompt);
             await foreach(var chunk in updates){
-                switch (chunk.Role){
+                if (chunk.Role is not null) {
+                    role = chunk.Role;
+                }
+                switch (role){
                     case var r when r == ChatRole.Assistant:
-                        txtString += chunk.ContentUpdate;   
-                        render();
-                        break;
-                    case var r when r == ChatRole.Tool:
-                        functionName = chunk.FunctionName;
-                        functionArgs += chunk.FunctionArgumentsUpdate;
-                        txtString = $"{functionName}\n{functionArgs}";
+                        if (chunk.ToolCallUpdate is null) {
+                            txtString += chunk.ContentUpdate;
+                        } else {
+                            if (chunk.ToolCallUpdate is StreamingFunctionToolCallUpdate ftc) {
+                                if (toolCallId is null) {
+                                    toolCallId = ftc.Id;
+                                    functionName = ftc.Name;
+                                }
+                                functionArgs += ftc.ArgumentsUpdate;
+                                txtString = $"{functionName}\n{functionArgs}";
+                            }
+                        }
                         render();
                         break;
                 }
                 
             }
-            
             render();
             if(String.IsNullOrEmpty(functionName)){
                 context.Add(new ChatRequestAssistantMessage(txtString));
                 cont = false;
             }
             else{
-                context.Add(new ChatRequestFunctionMessage(functionName, """Weather Information:{"coord":{"lon":-0.1257,"lat":51.5085},"weather":[{"id":804,"main":"Clouds","description":"overcast clouds","icon":"04n"}],"base":"stations","main":{"temp":11.64,"feels_like":11.18,"temp_min":10.16,"temp_max":12.75,"pressure":1007,"humidity":89},"visibility":10000,"wind":{"speed":1.34,"deg":267,"gust":2.68},"clouds":{"all":99},"dt":1708042032,"sys":{"type":2,"id":2091269,"country":"GB","sunrise":1708067638,"sunset":1708103732},"timezone":0,"id":2643743,"name":"London","cod":200} """));
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                var cityName = parameters["cityName"];
+                // do the await call to GetWeatherData(cityName)
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""Weather Information:{"coord":{"lon":-0.1257,"lat":51.5085},"weather":[{"id":804,"main":"Clouds","description":"overcast clouds","icon":"04n"}],"base":"stations","main":{"temp":11.64,"feels_like":11.18,"temp_min":10.16,"temp_max":12.75,"pressure":1007,"humidity":89},"visibility":10000,"wind":{"speed":1.34,"deg":267,"gust":2.68},"clouds":{"all":99},"dt":1708042032,"sys":{"type":2,"id":2091269,"country":"GB","sunrise":1708067638,"sunset":1708103732},"timezone":0,"id":2643743,"name":"{{cityName}}","cod":200} """));
                 cont = true;
+                txtString += $"\ncityName: {cityName}\n";
                 prompt = "";
             }
         }while(cont);
