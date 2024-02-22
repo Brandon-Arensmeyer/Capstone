@@ -81,6 +81,7 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
     }
     if(!String.IsNullOrWhiteSpace(prompt)){
         context.Add(new ChatRequestUserMessage(prompt));
+        
     }
     
     foreach(var m in context){
