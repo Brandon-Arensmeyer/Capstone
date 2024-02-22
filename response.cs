@@ -10,7 +10,12 @@ using Spectre.Console.Rendering;
 using Azure.Core;
 using System.ComponentModel;
 using System.Net.Http;
+using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Reflection.Metadata.Ecma335;
+using System.Numerics;
+using Azure;
 
 var openAI = new OpenAIClient("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");
 string readResource (string resourceName) {
@@ -51,9 +56,25 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
         new ChatCompletionsFunctionToolDefinition(
             new FunctionDefinition(){
                 Name = "getWeather", 
-                Description = "You will recive the weather and the JSON document the describes the clouds, temperature, humidity, etc...",
+                Description = "You will recive the weather and the JSON document that describes the clouds, temperature, humidity, etc...",
                 Parameters = makeParameters(
                     ("cityName", "string", "name of the city we want the weather for")
+                )}));
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "getQuote", 
+                Description = "You will recive a quote and the JSON document that gives the author of the quote, its tags, and its id.",
+                Parameters = makeParameters(
+                    ("quote", "string", "the type of quote that we want")
+                )}));
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "getJoke", 
+                Description = "You will recive a chuck norris joke",
+                Parameters = makeParameters(
+                    ("joke", "string", "the type of joke that we want")
                 )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
@@ -98,6 +119,7 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
         }
 
         var cont = false;
+        var counter = 0;
         do{
             ChatRole? role = null;
             string? functionName = null;
@@ -134,14 +156,49 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                 cont = false;
             }
             else{
-                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
-                var cityName = parameters["cityName"];
-                // do the await call to GetWeatherData(cityName)
-                context.Add(new ChatRequestFunctionMessage(functionName, $$"""Weather Information:{"coord":{"lon":-0.1257,"lat":51.5085},"weather":[{"id":804,"main":"Clouds","description":"overcast clouds","icon":"04n"}],"base":"stations","main":{"temp":11.64,"feels_like":11.18,"temp_min":10.16,"temp_max":12.75,"pressure":1007,"humidity":89},"visibility":10000,"wind":{"speed":1.34,"deg":267,"gust":2.68},"clouds":{"all":99},"dt":1708042032,"sys":{"type":2,"id":2091269,"country":"GB","sunrise":1708067638,"sunset":1708103732},"timezone":0,"id":2643743,"name":"{{cityName}}","cod":200} """));
-                cont = true;
-                txtString += $"\ncityName: {cityName}\n";
-                prompt = "";
+    
+
+
+                if(functionName == "getQuote"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                    var cityName = parameters["quote"];
+                    while(counter == 0){
+                        context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await quote()}}"""));
+                        cont = true;
+                        // add counter
+                        // txtString += $"\ncityName: {cityName}\n";
+                        prompt = "";                            
+                        counter += 1;
+                    }
+                        
+                }
+                else if(functionName == "getWeather"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                    var cityName = parameters["cityName"];
+                            
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await GetWeatherData(cityName)}}"""));
+                            
+                    cont = true;
+                    // add counter
+                    // txtString += $"\ncityName: {cityName}\n";
+                    prompt = "";
+                    counter += 1;    
+                }
+                else if(functionName == "getJoke"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                    var cityName = parameters["joke"];
+                            
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await joke()}}"""));
+                            
+                    cont = true;
+                    // add counter
+                    // txtString += $"\ncityName: {cityName}\n";
+                    prompt = "";
+                    counter += 1;    
+                }
             }
+                
+            
         }while(cont);
     };
     
@@ -153,6 +210,9 @@ static async Task Weather()
         Console.WriteLine("Enter the city name to get the weather:");
         string cityName = Console.ReadLine();
 
+        // string apiKey = "ea0f10e33a4f37d8fb4a028c82ac141e";
+        // string apiUrl = $"http://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={apiKey}&units=metric";
+        
         try
         {
             string weatherData = await GetWeatherData(cityName);
@@ -167,7 +227,7 @@ static async Task Weather()
         }
     }
 
-    static async Task<string> GetWeatherData(string cityName)
+    static async Task<string> GetWeatherData(object cityName)
     {
         using (HttpClient client = new HttpClient())
         
@@ -186,6 +246,51 @@ static async Task Weather()
             }
         }
     }
+
+    
+
+    static async Task<string> quote(){
+        string apiUrl = "https://api.quotable.io/random";
+
+        using (HttpClient client = new HttpClient()){
+        
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if(response.IsSuccessStatusCode){
+                string responseData = await response.Content.ReadAsStringAsync();
+                return await response.Content.ReadAsStringAsync();
+            }
+            else{
+                throw new Exception($"Failed to fetch quote data. Status Code: {response.StatusCode}");
+            }
+            
+        }
+
+    }
+
+    static async Task<string> joke()
+    {
+        string apiUrl = "https://api.chucknorris.io/jokes/random";
+
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseData = await response.Content.ReadAsStringAsync();
+                return await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch joke data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
+
+    
+
+    
 
 
 
