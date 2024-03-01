@@ -76,12 +76,21 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
                 Parameters = makeParameters(
                     ("joke", "string", "the type of joke that we want")
                 )}));
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "NFLSchedule", 
+                Description = "To the weekly schedule of the NFL schedule, should contain all the information about the teams who are playing that week",
+                Parameters = makeParameters(
+                    ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
+                    ("Week", "number", "the week as an integer number of the schedule, with week number one being the start of the season")
+                )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
     if(!String.IsNullOrWhiteSpace(prompt)){
         context.Add(new ChatRequestUserMessage(prompt));
-        
+
     }
     
     foreach(var m in context){
@@ -197,6 +206,19 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                     prompt = "";
                     counter += 1;    
                 }
+                else if(functionName == "NFLSchedule"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                    var year = Int32.Parse(parameters["Year"].ToString());
+                    var week = Int32.Parse(parameters["Week"].ToString());
+                            
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLSchedule((int) year,(int) week)}}"""));
+                            
+                    cont = true;
+                    // add counter
+                    // txtString += $"\ncityName: {cityName}\n";
+                    prompt = "";
+                    counter += 1;    
+                }
             }
                 
             
@@ -259,7 +281,7 @@ static async Task Weather()
 
             if(response.IsSuccessStatusCode){
                 string responseData = await response.Content.ReadAsStringAsync();
-                return await response.Content.ReadAsStringAsync();
+                return responseData;
             }
             else{
                 throw new Exception($"Failed to fetch quote data. Status Code: {response.StatusCode}");
@@ -280,11 +302,32 @@ static async Task Weather()
             if (response.IsSuccessStatusCode)
             {
                 string responseData = await response.Content.ReadAsStringAsync();
-                return await response.Content.ReadAsStringAsync();
+                return responseData;
             }
             else
             {
                 throw new Exception($"Failed to fetch joke data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
+
+    static async Task<string> NFLSchedule(int year, int week)
+    {
+        string apiUrl = $"https://cdn.espn.com/core/nfl/schedule?xhr=1&year={year}&week={week}";
+
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseData = await response.Content.ReadAsStringAsync();
+                var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
+                return json["content"].ToJsonString();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
             }
         }
     }
