@@ -85,6 +85,24 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
                     ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
                     ("Week", "number", "the week as an integer number of the schedule, with week number one being the start of the season")
                 )}));
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "NFLDepthChart", 
+                Description = "It gives you the players on a team durring a specific season",
+                Parameters = makeParameters(
+                    ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
+                    ("ID", "number", "The ID of the team you want to see the players of")
+                )}));
+    options.Tools.Add(
+        new ChatCompletionsFunctionToolDefinition(
+            new FunctionDefinition(){
+                Name = "NFLStats", 
+                Description = "To get the stats of a player durring a week of an NFL season",
+                Parameters = makeParameters(
+                    ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
+                    ("Week", "number", "the week as an integer number of the schedule, with week number one being the start of the season")
+                )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
@@ -219,6 +237,28 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                     prompt = "";
                     counter += 1;    
                 }
+                else if(functionName == "NFLDepthChart"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);        
+                    var year = Int32.Parse(parameters["Year"].ToString());
+                    var ID = Int32.Parse(parameters["ID"].ToString());
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLDepthChart((int) year,(int) ID)}}"""));
+                            
+                    cont = true;
+                    // add counter
+                    // txtString += $"\ncityName: {cityName}\n";
+                    prompt = "";
+                    counter += 1;    
+                }
+                else if(functionName == "NFLStats"){
+                    var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);  
+                    var year = Int32.Parse(parameters["Year"].ToString());
+                    var week = Int32.Parse(parameters["Week"].ToString());      
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLStats((int) year, (int) week)}}"""));
+                            
+                    cont = true;
+                    prompt = "";
+                    counter += 1;    
+                }
             }
                 
             
@@ -332,6 +372,48 @@ static async Task Weather()
         }
     }
 
+    
+    static async Task<string> NFLDepthChart(int year, int team_id) 
+    {
+        string apiUrl = $"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/teams/{team_id}/depthcharts";
+
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseData = await response.Content.ReadAsStringAsync();
+                var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
+                return json["content"].ToJsonString();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
+
+    static async Task<string> NFLStats(int year, int week) 
+    {
+        string apiUrl = $"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/types/2/weeks/{week}/qbr/10000";
+
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseData = await response.Content.ReadAsStringAsync();
+                var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
+                return json["content"].ToJsonString();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
     
 
     
