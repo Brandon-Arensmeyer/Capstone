@@ -16,6 +16,12 @@ using System.Threading.Tasks;
 using System.Reflection.Metadata.Ecma335;
 using System.Numerics;
 using Azure;
+using System.Collections.Specialized;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Text.Json.Nodes;
+using System.Security.Cryptography.X509Certificates;
+
 
 var openAI = new OpenAIClient("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");
 string readResource (string resourceName) {
@@ -88,20 +94,20 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
     options.Tools.Add(
         new ChatCompletionsFunctionToolDefinition(
             new FunctionDefinition(){
-                Name = "NFLDepthChart", 
+                Name = "NFLRoster", 
                 Description = "It gives you the players on a team durring a specific season",
                 Parameters = makeParameters(
-                    ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
+                    // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
                     ("ID", "number", "The ID of the team you want to see the players of")
                 )}));
     options.Tools.Add(
         new ChatCompletionsFunctionToolDefinition(
             new FunctionDefinition(){
-                Name = "NFLStats", 
-                Description = "To get the stats of a player durring a week of an NFL season",
+                Name = "NFLRecord", 
+                Description = "It will give you the wins, losses and ties in their season",
                 Parameters = makeParameters(
-                    ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
-                    ("Week", "number", "the week as an integer number of the schedule, with week number one being the start of the season")
+                    // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
+                    ("ID", "number", "The ID of the team you want to see the record of")
                 )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
@@ -237,11 +243,11 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                     prompt = "";
                     counter += 1;    
                 }
-                else if(functionName == "NFLDepthChart"){
+                else if(functionName == "NFLRoster"){
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);        
-                    var year = Int32.Parse(parameters["Year"].ToString());
+                    // var year = Int32.Parse(parameters["Year"].ToString());
                     var ID = Int32.Parse(parameters["ID"].ToString());
-                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLDepthChart((int) year,(int) ID)}}"""));
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRoster((int) ID)}}"""));
                             
                     cont = true;
                     // add counter
@@ -249,11 +255,11 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                     prompt = "";
                     counter += 1;    
                 }
-                else if(functionName == "NFLStats"){
+                else if(functionName == "NFLRecord"){
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);  
-                    var year = Int32.Parse(parameters["Year"].ToString());
-                    var week = Int32.Parse(parameters["Week"].ToString());      
-                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLStats((int) year, (int) week)}}"""));
+                    // var year = Int32.Parse(parameters["Year"].ToString());
+                    var ID = Int32.Parse(parameters["ID"].ToString());      
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRecord((int) ID)}}"""));
                             
                     cont = true;
                     prompt = "";
@@ -266,6 +272,7 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     };
     
 }
+
 
 
 static async Task Weather()
@@ -373,9 +380,35 @@ static async Task Weather()
     }
 
     
-    static async Task<string> NFLDepthChart(int year, int team_id) 
+    static async Task<string> NFLRoster(int team_id) 
     {
-        string apiUrl = $"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/teams/{team_id}/depthcharts";
+        // string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}/roster";
+        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}?enable=roster,projection,stats";
+
+        using (HttpClient client = new HttpClient())
+        {
+            HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                
+                string responseData = await response.Content.ReadAsStringAsync();
+                string combinedString = string.Join(",", ParsePlayerNames(responseData).ToArray());
+                return combinedString;
+                // var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
+                
+                // return json["team"]["athletes"].ToJsonString();
+            }
+            else
+            {
+                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
+            }
+        }
+    }
+
+    static async Task<string> NFLRecord(int team_id) 
+    {
+        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}?enable=roster,projection,stats";
 
         using (HttpClient client = new HttpClient())
         {
@@ -385,7 +418,7 @@ static async Task Weather()
             {
                 string responseData = await response.Content.ReadAsStringAsync();
                 var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
-                return json["content"].ToJsonString();
+                return json["team"]["record"].ToJsonString();
             }
             else
             {
@@ -394,26 +427,41 @@ static async Task Weather()
         }
     }
 
-    static async Task<string> NFLStats(int year, int week) 
+
+    static List<(string, string)> ParsePlayerNames(string json)
     {
-        string apiUrl = $"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/types/2/weeks/{week}/qbr/10000";
+        List<(string, string)> playerNames = new List<(string, string)>();
 
-        using (HttpClient client = new HttpClient())
+        // Parse the JSON
+        using (JsonDocument doc = JsonDocument.Parse(json))
         {
-            HttpResponseMessage response = await client.GetAsync(apiUrl);
+            JsonElement root = doc.RootElement;
 
-            if (response.IsSuccessStatusCode)
+            // Get the "team" object
+            JsonElement team = root.GetProperty("team");
+
+            // Get the "athletes" array
+            JsonElement athletes = team.GetProperty("athletes");
+
+            // JsonElement position = athletes.GetProperty("position");
+
+            // Iterate over each athlete
+            foreach (JsonElement athlete in athletes.EnumerateArray())
             {
-                string responseData = await response.Content.ReadAsStringAsync();
-                var json = System.Text.Json.Nodes.JsonObject.Parse(responseData);
-                return json["content"].ToJsonString();
+                // Get the first and last names
+                string name = athlete.GetProperty("fullName").GetString();
+                string pos = athlete.GetProperty("position").GetProperty("displayName").GetString();
+
+                // Add the first and last names to the list
+                playerNames.Add((name, pos));
             }
-            else
-            {
-                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
-            }
+            
         }
+        return playerNames;
+
+        // Return the list of player names
     }
+
     
 
     
