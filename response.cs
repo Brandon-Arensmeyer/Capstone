@@ -98,7 +98,7 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
                 Description = "It gives you the players on a team durring a specific season",
                 Parameters = makeParameters(
                     // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
-                    ("ID", "number", "The ID of the team you want to see the players of")
+                    ("team_name", "number", "You will be given the team name and convert it to the team id number based on the list in the system prompt. Once you get the team id, you will put that id into the url where {team_name} is located")
                 )}));
     options.Tools.Add(
         new ChatCompletionsFunctionToolDefinition(
@@ -107,7 +107,7 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getCompletion(List<ChatR
                 Description = "It will give you the wins, losses and ties in their season",
                 Parameters = makeParameters(
                     // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
-                    ("ID", "number", "The ID of the team you want to see the record of")
+                    ("team_name", "number", "You will be given the team name and convert it to the team id number based on the list in the system prompt. Once you get the team id, you will put that id into the url where {team_name} is located")
                 )}));
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
@@ -246,7 +246,7 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                 else if(functionName == "NFLRoster"){
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);        
                     // var year = Int32.Parse(parameters["Year"].ToString());
-                    var ID = Int32.Parse(parameters["ID"].ToString());
+                    var ID = Int32.Parse(parameters["team_name"].ToString());
                     context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRoster((int) ID)}}"""));
                             
                     cont = true;
@@ -258,8 +258,8 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
                 else if(functionName == "NFLRecord"){
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);  
                     // var year = Int32.Parse(parameters["Year"].ToString());
-                    var ID = Int32.Parse(parameters["ID"].ToString());      
-                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRecord((int) ID)}}"""));
+                    var team_name = parameters["team_name"].ToString();      
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRecord((string) team_name)}}"""));
                             
                     cont = true;
                     prompt = "";
@@ -380,10 +380,10 @@ static async Task Weather()
     }
 
     
-    static async Task<string> NFLRoster(int team_id) 
+    static async Task<string> NFLRoster(int team_name) 
     {
         // string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}/roster";
-        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}?enable=roster,projection,stats";
+        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_name}?enable=roster,projection,stats";
 
         using (HttpClient client = new HttpClient())
         {
@@ -406,9 +406,9 @@ static async Task Weather()
         }
     }
 
-    static async Task<string> NFLRecord(int team_id) 
+    static async Task<string> NFLRecord(string team_name) 
     {
-        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}?enable=roster,projection,stats";
+        string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_name}?enable=roster,projection,stats";
 
         using (HttpClient client = new HttpClient())
         {
@@ -422,7 +422,7 @@ static async Task Weather()
             }
             else
             {
-                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}");
+                throw new Exception($"Failed to fetch NFL data. Status Code: {response.StatusCode}. URL: {apiUrl}");
             }
         }
     }
