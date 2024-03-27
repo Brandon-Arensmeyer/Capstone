@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Response</title>
+    <link href="css/homestyle.css" rel="stylesheet" />
+    <script src="https://unpkg.com/htmx.org@1.9.11" integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/json-enc.js"></script>
+</head>
+
+<body>
+   <p id="word">hello</p>
+   <button hx-get="/bob" hx-swap="beforebegin" hx-target="#word">Press me</button>
+   <input hx-post="/prompt" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work"/>
+   <p id="response"></p>
+</body>
+
+</html>
