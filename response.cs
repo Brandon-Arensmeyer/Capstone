@@ -32,6 +32,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using System.Net.WebSockets;
+using Microsoft.AspNetCore.Mvc;
 
 
 
@@ -43,7 +44,7 @@ string readResource (string resourceName) {
     using var reader = new StreamReader(stream);
     return reader.ReadToEnd();
 }
-var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPrompt.md");
+var systemFormatingPrompt = readResource("capstone.SpectreConsoleFormattingSystemPrompt.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();
@@ -353,6 +354,128 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
         }while(cont);
     };
     
+}
+
+Action<string> writeText = txt => { };
+
+async Task processPromptAsync(string prompt) {
+    var context = new List<ChatRequestMessage>();
+    var txtString = " ";
+    void render() {
+        writeText(txtString);
+    }
+
+    var cont = false;
+    var counter = 0;
+    do {
+        ChatRole? role = null;
+        string? functionName = null;
+        string? toolCallId = null;
+        string functionArgs = "";
+
+        var updates = await getStreamingCompletion(context, prompt);
+        await foreach (var chunk in updates) {
+            if (chunk.Role is not null) {
+                role = chunk.Role;
+            }
+            switch (role) {
+                case var r when r == ChatRole.Assistant:
+                    if (chunk.ToolCallUpdate is null) {
+                        txtString += chunk.ContentUpdate;
+                    } else {
+                        if (chunk.ToolCallUpdate is StreamingFunctionToolCallUpdate ftc) {
+                            if (toolCallId is null) {
+                                toolCallId = ftc.Id;
+                                functionName = ftc.Name;
+                            }
+                            functionArgs += ftc.ArgumentsUpdate;
+                            txtString = $"{functionName}\n{functionArgs}";
+                        }
+                    }
+                    render();
+                    break;
+            }
+
+        }
+        render();
+        if (String.IsNullOrEmpty(functionName)) {
+            context.Add(new ChatRequestAssistantMessage(txtString));
+            cont = false;
+        } else {
+
+
+
+            if (functionName == "getQuote") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                var cityName = parameters["quote"];
+                while (counter == 0) {
+                    context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await quote()}}"""));
+                    cont = true;
+                    // add counter
+                    // txtString += $"\ncityName: {cityName}\n";
+                    prompt = "";
+                    counter += 1;
+                }
+
+            } else if (functionName == "getWeather") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                var cityName = parameters["cityName"];
+
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await GetWeatherData(cityName)}}"""));
+
+                cont = true;
+                // add counter
+                // txtString += $"\ncityName: {cityName}\n";
+                prompt = "";
+                counter += 1;
+            } else if (functionName == "getJoke") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                var cityName = parameters["joke"];
+
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await joke()}}"""));
+
+                cont = true;
+                // add counter
+                // txtString += $"\ncityName: {cityName}\n";
+                prompt = "";
+                counter += 1;
+            } else if (functionName == "NFLSchedule") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                var year = Int32.Parse(parameters["Year"].ToString());
+                var week = Int32.Parse(parameters["Week"].ToString());
+
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLSchedule((int)year, (int)week)}}"""));
+
+                cont = true;
+                // add counter
+                // txtString += $"\ncityName: {cityName}\n";
+                prompt = "";
+                counter += 1;
+            } else if (functionName == "NFLRoster") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                // var year = Int32.Parse(parameters["Year"].ToString());
+                var ID = Int32.Parse(parameters["team_name"].ToString());
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRoster((int)ID)}}"""));
+
+                cont = true;
+                // add counter
+                // txtString += $"\ncityName: {cityName}\n";
+                prompt = "";
+                counter += 1;
+            } else if (functionName == "NFLRecord") {
+                var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
+                // var year = Int32.Parse(parameters["Year"].ToString());
+                var team_name = parameters["team_name"].ToString();
+                context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await NFLRecord((string)team_name)}}"""));
+
+                cont = true;
+                prompt = "";
+                counter += 1;
+            }
+        }
+
+
+    } while (cont);
 }
 
 async Task<string> processPrompt(List<ChatRequestMessage> context, String prompt){
@@ -738,6 +861,18 @@ void startup(){
         var rcvBuffer = new byte[1024 * 4];
         var contRcv = true;
 
+        var oldWriteText = writeText;
+        writeText = txt => {
+            var message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{System.Web.HttpUtility.HtmlEncode(txt)}</div>";
+            if (webSocket.CloseStatus.HasValue) {
+                Console.WriteLine("Ending websocket connection ...");
+            } else {
+                var len = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
+                webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            oldWriteText(txt);
+        };
+
         async Task RcLoop(){
             while(contRcv){
                 Console.WriteLine("rcvLoop waiting");
@@ -750,19 +885,19 @@ void startup(){
             }
         }
         async Task Loop(){
-            if (runCounter){
-                var message = $"<div id=\"counter\" hx-swap-oob=\"true\">{counter}</div>";
-                if (webSocket.CloseStatus.HasValue){
-                    Console.WriteLine("Ending websocket connection ...");
+            while (true) {
+                if (runCounter) {
+                    var message = $"<div id=\"counter\" hx-swap-oob=\"true\">{counter}</div>";
+                    if (webSocket.CloseStatus.HasValue) {
+                        Console.WriteLine("Ending websocket connection ...");
+                    } else {
+                        var len = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
+                        await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                    counter++;
                 }
-                else{
-                    var len = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
-                    await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, true, CancellationToken.None);
-                }
-                counter++;
+                await Task.Delay(1000);
             }
-            await Task.Delay(1000);
-            await Loop();
         }
 
         var rcvFinished = RcLoop();
@@ -781,19 +916,23 @@ void startup(){
         runCounter = false;
         await context.Response.WriteAsync($@"<button hx-get=""/bob"" hx-swap=""outerHTML"">Start Counter</button>");
     });
-    // app.Use((context, next) => {
-    //     if(context.Request.Path == "/prompt"){
-    //         Console.WriteLine("connecting with a websocket");
-    //         var webSocket = context.WebSockets.AcceptWebSocketAsync().Result;
-    //         return ProcessWs(webSocket);
-    //     }
-    //     else{
-    //         return next.Invoke();
-    //     }
-    // });
+    app.Use(async (context, next) => {
+        if (context.Request.Path == "/ws") {
+            Console.WriteLine("connecting with a websocket");
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            await ProcessWs(webSocket);
+        } else {
+            await next.Invoke();
+        }
+    });
     app.MapPost("/prompt", async (Dictionary<String, Object> o)=>{
         Console.WriteLine($"{o["Work"]}");
         return await processPrompt(new List<ChatRequestMessage>(), o["Work"].ToString());
+    });
+    app.MapPost("/prompt2", async (Dictionary<String, Object> o) => {
+        Console.WriteLine($"{o["Work"]}");
+        processPromptAsync(o["Work"].ToString());
+        return Microsoft.AspNetCore.Http.Results.NoContent();
     });
 
     app.Run("https://localhost:5000");
