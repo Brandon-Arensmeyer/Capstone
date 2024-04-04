@@ -14,11 +14,13 @@
 </head>
 
 <body hx-ext="ws" ws-connect="/ws">
-    <p id="word">Hello</p>
-    <p id="counter">Nothing Yet</p>
-    <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
-    <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work" />
-    <p id="response"></p>
+   <p id="word">Hello</p>
+   <p id="counter">Nothing Yet</p>
+   <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
+   <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work"/>
+   <div id="output">
+   </div>
+   <p id="response"></p>
 </body>
 
 </html>

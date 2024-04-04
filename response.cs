@@ -44,7 +44,7 @@ string readResource (string resourceName) {
     using var reader = new StreamReader(stream);
     return reader.ReadToEnd();
 }
-var systemFormatingPrompt = readResource("capstone.SpectreConsoleFormattingSystemPrompt.md");
+var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPrompt.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();
@@ -944,6 +944,9 @@ void startup(){
     //     return """<p style="color:red" >Goodbye</p>""";
     // });
     
+        
+    // });
+    // app.Run("https://localhost:5000");
 }
 
 // This is where you can use all the programs created above
