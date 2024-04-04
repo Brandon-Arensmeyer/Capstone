@@ -781,18 +781,22 @@ void startup(){
         runCounter = false;
         await context.Response.WriteAsync($@"<button hx-get=""/bob"" hx-swap=""outerHTML"">Start Counter</button>");
     });
-    app.Use((context, next) => {
-        if(context.Request.Path == "/prompt"){
-            Console.WriteLine("connecting with a websocket");
-            var webSocket = context.WebSockets.AcceptWebSocketAsync().Result;
-            return ProcessWs(webSocket);
-        }
-        else{
-            return next.Invoke();
-        }
+    // app.Use((context, next) => {
+    //     if(context.Request.Path == "/prompt"){
+    //         Console.WriteLine("connecting with a websocket");
+    //         var webSocket = context.WebSockets.AcceptWebSocketAsync().Result;
+    //         return ProcessWs(webSocket);
+    //     }
+    //     else{
+    //         return next.Invoke();
+    //     }
+    // });
+    app.MapPost("/prompt", async (Dictionary<String, Object> o)=>{
+        Console.WriteLine($"{o["Work"]}");
+        return await processPrompt(new List<ChatRequestMessage>(), o["Work"].ToString());
     });
 
-    app.Run();
+    app.Run("https://localhost:5000");
 
     // app.MapGet("/bob",()=>{
     //     return """<button hx-get="/bill" hx-swap="outerHTML" >Goodbye</button>""";
@@ -800,12 +804,7 @@ void startup(){
     // app.MapGet("/bill",()=>{
     //     return """<p style="color:red" >Goodbye</p>""";
     // });
-    // app.MapPost("/prompt", async (Dictionary<String, Object> o)=>{
-    //     Console.WriteLine($"{o["Work"]}");
-    //     return await processPrompt(new List<ChatRequestMessage>(), o["Work"].ToString());
-        
-    // });
-    // app.Run("https://localhost:5000");
+    
 }
 
 // This is where you can use all the programs created above
