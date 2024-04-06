@@ -6,21 +6,33 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Response</title>
-    <link href="css/homestyle.css" rel="stylesheet" />
-    <script src="https://unpkg.com/htmx.org@1.9.11" integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0" crossorigin="anonymous"></script>
+    <link href="style.css" rel="stylesheet" />
+    <script src="https://unpkg.com/htmx.org@1.9.11"
+        integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0"
+        crossorigin="anonymous"></script>
     <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
     <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/json-enc.js"></script>
 </head>
 
+
 <body hx-ext="ws" ws-connect="/ws">
-   <p id="word">Hello</p>
-   <p id="counter">Nothing Yet</p>
-   <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
-   <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work"/>
-   <div id="output">
-   </div>
-   <p id="response"></p>
+    <header>
+        <div id="title">
+            <h1>Welcome to Response.AI</h1>
+        </div>
+    </header>
+    <div id = prompt>
+        <p id="word">Hello</p>
+        <p id="counter">Nothing Yet</p>
+        <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
+        <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work" />
+        
+    </div>
+    <div id="output">
+        <p id="response"></p>
+    </div>
+    
 </body>
 
 </html>
