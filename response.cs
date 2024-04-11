@@ -40,11 +40,16 @@ using Microsoft.AspNetCore.Mvc;
 
 var openAI = new OpenAIClient("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");
 string readResource (string resourceName) {
-    using var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-    using var reader = new StreamReader(stream);
-    return reader.ReadToEnd();
+    foreach (var name in System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames()) {
+        if (name.EndsWith(resourceName)) {
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+    }
+    throw new ArgumentException($"Can not find {resourceName} or is suffix in the embedded resources,\n   did you make sure the file has been marked as Embedded resource in the Build Action drop down in the project file", nameof(resourceName));
 }
-var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPrompt.md");
+var systemFormatingPrompt = readResource("SpectreConsoleFormattingSystemPromptHTMX.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();

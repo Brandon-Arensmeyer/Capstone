@@ -8,8 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="SpectreConsoleFormattingSystemPrompt.md" >
+    <None Remove="SpectreConsoleFormattingSystemPromptHTMX.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="SpectreConsoleFormattingSystemPrompt.md">
     </EmbeddedResource>
+    <EmbeddedResource Include="SpectreConsoleFormattingSystemPromptHTMX.md" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.AI.OpenAI" Version="1.0.0-beta.12" />
