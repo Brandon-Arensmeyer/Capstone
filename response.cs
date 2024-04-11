@@ -44,7 +44,7 @@ string readResource (string resourceName) {
     using var reader = new StreamReader(stream);
     return reader.ReadToEnd();
 }
-var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPrompt.md");
+var systemFormatingPrompt = readResource("Capstone.SpectreConsoleFormattingSystemPromptHTMX.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();
