@@ -34,6 +34,9 @@ Here is how you would creat an unordered or ordered list
   <li>Third item</li>
 </ol>
 
+Remember you are formatting the output into HTML directly so you need to escape the HTML characters used for element tags and such that might be used in any plaining text you want to render.
+Your response will be ALWAY added to the interior of a div element.
+
 Please dont make up information you dont have. Its ok to say that you dont know.
 
 If you dont know the answer or cant find it, please suggest a function and parameters that would helpful in doing so, and why existing functions that you have dont work.
