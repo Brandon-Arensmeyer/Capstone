@@ -850,6 +850,8 @@ await AnsiConsole.Progress()
 void startup(){
     var builder = WebApplication.CreateBuilder(Environment.GetCommandLineArgs());
     var app = builder.Build();
+
+    List<string> textHistory = new List<string>();
     app
         .UseDeveloperExceptionPage()
         .UseHttpsRedirection()
@@ -868,6 +870,7 @@ void startup(){
 
         var oldWriteText = writeText;
         writeText = txt => {
+            textHistory.Add(txt);
             var message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{txt}</div>";
             if (webSocket.CloseStatus.HasValue) {
                 Console.WriteLine("Ending websocket connection ...");
