@@ -871,7 +871,7 @@ void startup(){
         var oldWriteText = writeText;
         writeText = txt => {
             textHistory.Add(txt);
-            var message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{txt}</div>";
+            var message = $"<div id=\"text\" hx-swap-oob=\"innerHTML\">{txt}</div>";
             if (webSocket.CloseStatus.HasValue) {
                 Console.WriteLine("Ending websocket connection ...");
             } else {
