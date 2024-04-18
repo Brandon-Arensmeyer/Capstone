@@ -49,7 +49,7 @@ string readResource (string resourceName) {
     }
     throw new ArgumentException($"Can not find {resourceName} or is suffix in the embedded resources,\n   did you make sure the file has been marked as Embedded resource in the Build Action drop down in the project file", nameof(resourceName));
 }
-var systemFormatingPrompt = readResource("SpectreConsoleFormattingSystemPromptHTMX.md");
+var systemFormatingPrompt = readResource("SpectreConsoleFormattingSystemPrompt.md");
 
 // async void simpleResponse(){
 //     var cts = new CancellationTokenSource();
@@ -868,7 +868,7 @@ void startup(){
 
         var oldWriteText = writeText;
         writeText = txt => {
-            var message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{System.Web.HttpUtility.HtmlEncode(txt)}</div>";
+            var message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{txt}</div>";
             if (webSocket.CloseStatus.HasValue) {
                 Console.WriteLine("Ending websocket connection ...");
             } else {
