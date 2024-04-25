@@ -28,7 +28,6 @@
         <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
         <div id="output">
             <p id="response"></p>
-            <p id="text"></p>
         </div>
         <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work" />
 

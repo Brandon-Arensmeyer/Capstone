@@ -363,8 +363,7 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
 
 Action<string> writeText = txt => { };
 
-async Task processPromptAsync(string prompt) {
-    var context = new List<ChatRequestMessage>();
+async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
     var txtString = " ";
     void render() {
         writeText(txtString);
@@ -871,7 +870,7 @@ void startup(){
         var oldWriteText = writeText;
         writeText = txt => {
             textHistory.Add(txt);
-            var message = $"<div id=\"text\" hx-swap-oob=\"innerHTML\">{txt}</div>";
+            var message = $"<div id=\"response\" hx-post=\"innerHTML\">{txt}</div>";
             if (webSocket.CloseStatus.HasValue) {
                 Console.WriteLine("Ending websocket connection ...");
             } else {
@@ -933,13 +932,14 @@ void startup(){
             await next.Invoke();
         }
     });
+    var context = new List<ChatRequestMessage>();
     app.MapPost("/prompt", async (Dictionary<String, Object> o)=>{
         Console.WriteLine($"{o["Work"]}");
-        return await processPrompt(new List<ChatRequestMessage>(), o["Work"].ToString());
+        return await processPrompt(context, o["Work"].ToString());
     });
     app.MapPost("/prompt2", async (Dictionary<String, Object> o) => {
         Console.WriteLine($"{o["Work"]}");
-        processPromptAsync(o["Work"].ToString());
+        processPromptAsync(context, o["Work"].ToString());
         return Microsoft.AspNetCore.Http.Results.NoContent();
     });
 
@@ -959,7 +959,7 @@ void startup(){
 
 // This is where you can use all the programs created above
 startup();
-
+record Message(string role, string content);
 // This is for the console if you want to run it as a console
 // AnsiConsole.MarkupLine("[yellow]Welcome, I am your chatbot![/]");
 // var cts = new CancellationTokenSource();
