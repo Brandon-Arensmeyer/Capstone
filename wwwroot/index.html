@@ -27,9 +27,10 @@
         <p id="counter">Nothing Yet</p>
         <button hx-get="/bob" hx-swap="outerHTML" hx-target="#word">Press me</button>
         <div id="output">
+            <div id="history"></div>
             <p id="response"></p>
         </div>
-        <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="innerHTML" hx-target="#response" name="Work" />
+        <input hx-post="/prompt2" hx-ext='json-enc' hx-swap="outerHTML" hx-target="this" name="Work" />
 
     </div>
 

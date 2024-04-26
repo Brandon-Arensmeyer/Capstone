@@ -33,6 +33,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using System.Net.WebSockets;
 using Microsoft.AspNetCore.Mvc;
+using static System.Net.Mime.MediaTypeNames;
 
 
 
@@ -361,12 +362,12 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     
 }
 
-Action<string> writeText = txt => { };
+Action<string,bool> writeText = (txt,finished) => { };
 
 async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
     var txtString = " ";
-    void render() {
-        writeText(txtString);
+    void render(bool finished) {
+        writeText(txtString,finished);
     }
 
     var cont = false;
@@ -396,12 +397,12 @@ async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
                             txtString = $"{functionName}\n{functionArgs}";
                         }
                     }
-                    render();
+                    render(false);
                     break;
             }
 
         }
-        render();
+        render(true);
         if (String.IsNullOrEmpty(functionName)) {
             context.Add(new ChatRequestAssistantMessage(txtString));
             cont = false;
@@ -868,16 +869,29 @@ void startup(){
         var contRcv = true;
 
         var oldWriteText = writeText;
-        writeText = txt => {
+        writeText = (txt,finished) => {
             textHistory.Add(txt);
-            var message = $"<div id=\"response\" hx-post=\"innerHTML\">{txt}</div>";
-            if (webSocket.CloseStatus.HasValue) {
-                Console.WriteLine("Ending websocket connection ...");
+            string[] messages = null;
+            if (!finished) {
+                messages = new[] { $"<div id=\"response\" hx-swap-oob=\"innerHTML\">{txt}</div>" };
             } else {
-                var len = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
-                webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, true, CancellationToken.None);
+                //message = $"<div><div id=\"response\" hx-swap-oob=\"innerHTML\"></div><p hx-select-oob=\"#response\" hx-swap-oob=\"beforebegin\">{txt}</p></div>";
+                //message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\"></div>";
+                messages = new[] {
+                        $"<div id=\"response\" hx-swap-oob=\"innerHTML\"/>",
+                        $"<div hx-swap-oob=\"beforeend:#history\"><p>{txt}</p></div>"
+                };
+                //messages = new[] { $"<p id=\"response\" hx-swap-oob=\"beforebegin\">{txt}</p>" };
             }
-            oldWriteText(txt);
+            if (webSocket.CloseStatus.HasValue) {
+                Console.WriteLine($"Ending websocket connection {webSocket.CloseStatus.Value}...");
+            } else {
+                foreach (var message in messages) {
+                    var len = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
+                    webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
+            oldWriteText(txt,finished);
         };
 
         async Task RcLoop(){
@@ -940,7 +954,8 @@ void startup(){
     app.MapPost("/prompt2", async (Dictionary<String, Object> o) => {
         Console.WriteLine($"{o["Work"]}");
         processPromptAsync(context, o["Work"].ToString());
-        return Microsoft.AspNetCore.Http.Results.NoContent();
+        return Microsoft.AspNetCore.Http.Results.Content("<input hx-post = \"/prompt2\" hx-ext = 'json-enc' hx-swap = \"outerHTML\" hx-target = \"this\" name = \"Work\"/>");
+        //return Microsoft.AspNetCore.Http.Results.NoContent();
     });
 
     app.Run("https://localhost:5000");
