@@ -61,9 +61,8 @@ input{
     color: white;
     justify-content: center;
     align-items: center;
-    width: 80%;
-    height: 500px;
-    border: solid 10px white;
+    width: 100%;
+    
     
     
 }
@@ -71,4 +70,5 @@ input{
 #reply{
     display: table-cell;
     text-align: center;
+    align-self: center;
 }
