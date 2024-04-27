@@ -879,7 +879,7 @@ void startup(){
                 //message = $"<div id=\"response\" hx-swap-oob=\"innerHTML\"></div>";
                 messages = new[] {
                         $"<div id=\"response\" hx-swap-oob=\"innerHTML\"/>",
-                        $"<div hx-swap-oob=\"beforeend:#history\"><p>{txt}</p></div>"
+                        $"<div hx-swap-oob=\"beforeend:#history\"><p id='reply'>{txt}</p></div>"
                 };
                 //messages = new[] { $"<p id=\"response\" hx-swap-oob=\"beforebegin\">{txt}</p>" };
             }

@@ -55,3 +55,21 @@ input{
     text-align: center;
     vertical-align: top;
 }
+
+#history{
+    display: table;
+    color: white;
+    justify-content: center;
+    align-items: center;
+    width: 80%;
+    height: 500px;
+    border: solid 10px white;
+    
+    
+}
+
+#reply{
+    /* display: table-cell; */
+    position: fixed;
+    text-align: center;
+}
