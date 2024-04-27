@@ -69,7 +69,6 @@ input{
 }
 
 #reply{
-    /* display: table-cell; */
-    position: fixed;
+    display: table-cell;
     text-align: center;
 }
