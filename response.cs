@@ -38,8 +38,10 @@ using static System.Net.Mime.MediaTypeNames;
 
 
 
-
+//Creating an instance of the OpenAiClient using and API key.
 var openAI = new OpenAIClient("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");
+
+//Method to read an embedded resource file from the assembly
 string readResource (string resourceName) {
     foreach (var name in System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames()) {
         if (name.EndsWith(resourceName)) {
@@ -50,18 +52,12 @@ string readResource (string resourceName) {
     }
     throw new ArgumentException($"Can not find {resourceName} or is suffix in the embedded resources,\n   did you make sure the file has been marked as Embedded resource in the Build Action drop down in the project file", nameof(resourceName));
 }
+
+// Reading a system formatting promt from an embedded resource file
 var systemFormatingPrompt = readResource("SpectreConsoleFormattingSystemPrompt.md");
 
-// async void simpleResponse(){
-//     var cts = new CancellationTokenSource();
-//     while(true){
-//         var prompt = await(new TextPrompt<string>("> ")).ShowAsync(AnsiConsole.Console,cts.Token);
-//         await AnsiConsole.Live((new Panel(new Markup("Hello"))).Expand().Header("Response", Justify.Center)).StartAsync(updateLayoutAsync(prompt));
-//     }
 
-    
-// }
-
+//Method to create a BinaryData object from paramets
 System.BinaryData makeParameters(params (string, string, string)[] parameters) {
     var properties = new System.Collections.Generic.Dictionary<string, object>();
     foreach (var pv in parameters) {
@@ -76,6 +72,7 @@ System.BinaryData makeParameters(params (string, string, string)[] parameters) {
     return BinaryData.FromObjectAsJson(o);
 }
 
+//Method to get a streaming completion from the OpenAI API
 Task<StreamingResponse<StreamingChatCompletionsUpdate>> getStreamingCompletion(List<ChatRequestMessage> context,String prompt) {
     var options = new ChatCompletionsOptions();
     options.DeploymentName = "gpt-4-1106-preview";
@@ -130,23 +127,32 @@ Task<StreamingResponse<StreamingChatCompletionsUpdate>> getStreamingCompletion(L
                     // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
                     ("team_name", "number", "You will be given the team name and convert it to the team id number based on the list in the system prompt. Once you get the team id, you will put that id into the url where {team_name} is located")
                 )}));
+
+    // Adding the system formmating prompt to the context if it's empty
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
+
+    //Adding the user prompt to the context if it's not empty
     if(!String.IsNullOrWhiteSpace(prompt)){
         context.Add(new ChatRequestUserMessage(prompt));
-
     }
     
+    //Adding all messages in the context to the options.
     foreach(var m in context){
         options.Messages.Add(m);
     }
+
+    // Getting the streaming chat completions from the OpenAI API
     return openAI.GetChatCompletionsStreamingAsync(options);
 }
 
 Task<Response<ChatCompletions>> getCompletion(List<ChatRequestMessage> context,String prompt) {
+    //Create ChatCompletionsOptions and set deployment name
     var options = new ChatCompletionsOptions();
     options.DeploymentName = "gpt-4-1106-preview";
+
+    //Add function tool definitions for different types of requests
     options.Tools.Add(
         new ChatCompletionsFunctionToolDefinition(
             new FunctionDefinition(){
@@ -198,17 +204,24 @@ Task<Response<ChatCompletions>> getCompletion(List<ChatRequestMessage> context,S
                     // ("Year", "number", "the start of the year as an integer of the NFL schedule you are asking for"),
                     ("team_name", "number", "You will be given the team name and convert it to the team id number based on the list in the system prompt. Once you get the team id, you will put that id into the url where {team_name} is located")
                 )}));
+
+    // If the context is empty, add a system message
     if(context.Count == 0){
         context.Add(new ChatRequestSystemMessage($"{systemFormatingPrompt}\n You are an AI. "));
     }
+
+    // If the prompt is not empty or whitespace, add a user message
     if(!String.IsNullOrWhiteSpace(prompt)){
         context.Add(new ChatRequestUserMessage(prompt));
 
     }
     
+    //Add message from the context to the options
     foreach(var m in context){
         options.Messages.Add(m);
     }
+
+    //Return the completion result from the OpenAI client
     return openAI.GetChatCompletionsAsync(options);
 }
 
@@ -216,6 +229,8 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
     var context = new List<ChatRequestMessage>();
     return async ldc =>{
         var txtString = " ";
+
+        //Function to render the text string to the display
         void render(){
             try{
                 ldc.UpdateTarget(new Panel(new Markup($"{txtString}")).Expand().Header("Response", Justify.Center));
@@ -249,6 +264,7 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
             string? toolCallId = null;
             string functionArgs = "";
 
+            // Get streaming completion updates from the OpenAI client
             var updates = await getStreamingCompletion(context, prompt);
             await foreach(var chunk in updates){
                 if (chunk.Role is not null) {
@@ -275,13 +291,12 @@ Func<LiveDisplayContext, Task> updateLayoutAsync(string prompt){
             }
             render();
             if(String.IsNullOrEmpty(functionName)){
+                // If there's no function call, add the assistant's response to the context
                 context.Add(new ChatRequestAssistantMessage(txtString));
                 cont = false;
             }
             else{
-    
-
-
+                // Handle specific function calls based on the functionName
                 if(functionName == "getQuote"){
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
                     var cityName = parameters["quote"];
@@ -366,6 +381,7 @@ Action<string,bool> writeText = (txt,finished) => { };
 
 async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
     var txtString = " ";
+    // Function to render the text string
     void render(bool finished) {
         writeText(txtString,finished);
     }
@@ -378,6 +394,8 @@ async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
         string? toolCallId = null;
         string functionArgs = "";
 
+
+// Get streaming completion updates from the OpenAI client
         var updates = await getStreamingCompletion(context, prompt);
         await foreach (var chunk in updates) {
             if (chunk.Role is not null) {
@@ -404,12 +422,11 @@ async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
         }
         render(true);
         if (String.IsNullOrEmpty(functionName)) {
+            //If there's no function call, add the assistant's response to the context
             context.Add(new ChatRequestAssistantMessage(txtString));
             cont = false;
         } else {
-
-
-
+            //Handle specific function calls based on the functionName
             if (functionName == "getQuote") {
                 var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
                 var cityName = parameters["quote"];
@@ -483,31 +500,36 @@ async Task processPromptAsync(List<ChatRequestMessage> context, string prompt) {
     } while (cont);
 }
 
+// Function to process a given prompt within a context of chat messages
 async Task<string> processPrompt(List<ChatRequestMessage> context, String prompt){
-        var txtString = "";
-        var cont = false;
-        var counter = 0;
+        var txtString = ""; //Initizalizes an empty string to hold the response text
+        var cont = false;   // Flag to indicatate wheter to continue to loop
+        var counter = 0;    // Counter to track the number of function calls
         do{
-            ChatRole? role = null;
-            string? functionName = null;
-            string? toolCallId = null;
-            string functionArgs = "";
+            ChatRole? role = null; // Variable to hold the role of the message sender
+            string? functionName = null; // Variable to hold the name of the function to call
+            string? toolCallId = null; // Variable to hold the ID of the tool call
+            string functionArgs = ""; // Variable to hold the arguments of the function call
+
+            // Get completion results from the AI service
 
             var updates = await getCompletion(context, prompt);
-            var message = updates.Value.Choices[0].Message;
+            var message = updates.Value.Choices[0].Message; // Extract the message from the completion result
 
             
-            
+            // Determine the role of the message
             role = message.Role;    
             switch (role){
                 case var r when r == ChatRole.Assistant:
                     if (message.ToolCalls.Count == 1 && message.ToolCalls[0] is ChatCompletionsFunctionToolCall ftc) {
+                        // If the message contains a tool call, extract the function name and arguments
                         toolCallId = ftc.Id;
                         functionName = ftc.Name;
                         
                         functionArgs = ftc.Arguments;
-                        txtString += $"{functionName}\n{functionArgs}";
+                        txtString += $"{functionName}\n{functionArgs}"; // Append function name and arguments to the response text
                     }else{
+                        // Otherwise, append the message content to the response text
                         txtString += message.Content;
 
                     }
@@ -516,17 +538,18 @@ async Task<string> processPrompt(List<ChatRequestMessage> context, String prompt
             }
                 
             if(String.IsNullOrEmpty(functionName)){
+                // If no function is to be called, add the assistant's message to the context
                 context.Add(new ChatRequestAssistantMessage(message.Content));
-                cont = false;
+                cont = false; // Set the flag to stop the loop
             }
             else{
-    
-
-
+                // Handle specific function calls based on the functionName
                 if(functionName == "getQuote"){
+                    // Deserialize function arguments to extract the quote type
                     var parameters = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(functionArgs);
                     var cityName = parameters["quote"];
                     while(counter == 0){
+                        // Add the function call result to the context and set continuation flags
                         context.Add(new ChatRequestFunctionMessage(functionName, $$"""{{{await quote()}}"""));
                         cont = true;
                         // add counter
@@ -599,9 +622,10 @@ async Task<string> processPrompt(List<ChatRequestMessage> context, String prompt
                 
             
         }while(cont);
-    return txtString;
+    return txtString; // Return the final response text
 }
 
+// Function to get weather data based on user input
 static async Task Weather()
     {
         Console.WriteLine("Enter the city name to get the weather:");
@@ -612,6 +636,7 @@ static async Task Weather()
         
         try
         {
+            // Fetch weather data for the given city name
             string weatherData = await GetWeatherData(cityName);
 
             // Parse and display weather information
@@ -620,10 +645,12 @@ static async Task Weather()
         }
         catch (Exception ex)
         {
+            // Handle errors by displaying an error message
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
 
+    // Function to fetch weather data from an API
     static async Task<string> GetWeatherData(object cityName)
     {
         using (HttpClient client = new HttpClient())
@@ -645,7 +672,7 @@ static async Task Weather()
     }
 
     
-
+    // Function to fetch a random quote from an API
     static async Task<string> quote(){
         string apiUrl = "https://api.quotable.io/random";
 
@@ -665,6 +692,7 @@ static async Task Weather()
 
     }
 
+    // Function to fetch a random joke from an API
     static async Task<string> joke()
     {
         string apiUrl = "https://api.chucknorris.io/jokes/random";
@@ -685,6 +713,7 @@ static async Task Weather()
         }
     }
 
+    // Function to fetch the NFL schedule for a specific year and week from an API
     static async Task<string> NFLSchedule(int year, int week)
     {
         string apiUrl = $"https://cdn.espn.com/core/nfl/schedule?xhr=1&year={year}&week={week}";
@@ -706,7 +735,7 @@ static async Task Weather()
         }
     }
 
-    
+    // Function to fetch the NFL roster for a specific team from an API
     static async Task<string> NFLRoster(int team_name) 
     {
         // string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_id}/roster";
@@ -733,6 +762,7 @@ static async Task Weather()
         }
     }
 
+    // Function to fetch the NFL record for a specific team from an API
     static async Task<string> NFLRecord(string team_name) 
     {
         string apiUrl = $"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{team_name}?enable=roster,projection,stats";
@@ -754,7 +784,7 @@ static async Task Weather()
         }
     }
 
-
+    // Function to parse player names from JSON response
     static List<(string, string)> ParsePlayerNames(string json)
     {
         List<(string, string)> playerNames = new List<(string, string)>();
@@ -807,17 +837,18 @@ static async Task Weather()
 
 // Below here is everying being called
 
-
+// This section simulates two simultaneous loading sequences with progress indicators.
 // This creates two progress bar lines
 await AnsiConsole.Progress()
         .StartAsync(async ctx =>{
+            // Add tasks to the progress context with labels
             var task1 = ctx.AddTask("[blue]Computer Startup[/]");
             var task2 = ctx.AddTask("[blue]Motivation to work[/]");
             
-
+            // Continuously update the progress of the tasks until they are finished
             while(!ctx.IsFinished){
                 await Task.Delay(0);
-
+                // Increment the progress of the tasks
                 task1.Increment(1.5);
                 task2.Increment(0.5);
             }
@@ -850,8 +881,9 @@ await AnsiConsole.Progress()
 void startup(){
     var builder = WebApplication.CreateBuilder(Environment.GetCommandLineArgs());
     var app = builder.Build();
-
+    // List to keep track of text history
     List<string> textHistory = new List<string>();
+    // Configure middleware and routes
     app
         .UseDeveloperExceptionPage()
         .UseHttpsRedirection()
@@ -863,6 +895,7 @@ void startup(){
     var counter = 0;
     var runCounter = false;
 
+    // WebSocket processing function
     async Task ProcessWs(WebSocket webSocket){
         var buffer = new byte[1024 * 4];
         var rcvBuffer = new byte[1024 * 4];
@@ -894,6 +927,7 @@ void startup(){
             oldWriteText(txt,finished);
         };
 
+        // Loop to receive messages from the websocket
         async Task RcLoop(){
             while(contRcv){
                 Console.WriteLine("rcvLoop waiting");
@@ -905,6 +939,7 @@ void startup(){
                                     Content: {Encoding.UTF8.GetString(rcvBuffer, 0, result.Count)}");
             }
         }
+        // Loop to send counter updates through the websocket
         async Task Loop(){
             while (true) {
                 if (runCounter) {
@@ -928,6 +963,7 @@ void startup(){
         await rcvFinished;
     }
     
+    // Define routes and their handlers
     app.MapGet("/bob", async (HttpContext context) =>
     {
         runCounter = true;
