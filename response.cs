@@ -39,7 +39,7 @@ using static System.Net.Mime.MediaTypeNames;
 
 
 //Creating an instance of the OpenAiClient using and API key.
-var openAI = new OpenAIClient(""); //Enter you api key here
+var openAI = new OpenAIClient("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"); //Enter you api key here
 
 //Method to read an embedded resource file from the assembly
 string readResource (string resourceName) {
